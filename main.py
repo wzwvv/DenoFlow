@@ -1,107 +1,100 @@
-import sys
-import time
-import torch
-from setuptools.wheel import unpack
-import numpy as  np
+"""DenoFlow: train the velocity field on one subject and score the denoised trials.
+
+    python main.py --dataset benchmark --subject 1 --fold 0 --artifact both
+
+Everything not given on the command line comes from etc/config.yaml.
+"""
+import argparse
 import os
-import Utils.EEGDataset as EEGDataset
-from Models import Generator
-from Models.CT_DCENet.models import CT_DCENet
-from Models.EEGDNet.Network_structure import DeT
-from Utils.test import test
-from Utils.saveresult import write_to_excel
-from Models.Generator import EEGDenoiseGenerator_NoSeq,EEGDenoiseGenerator,EEGDenoiseGeneratorv2
-from Utils.dataprocess import data_preprocess,fix_random_seed
-from Utils import Trainer
-from etc.global_config import config
-import Utils.testbaseline.run as runbaseline
-def run(basegenerator=None):
-    torch.set_num_threads(5)
-    devicesid= config['train_param']['cuda']
-    if devicesid != 'cpu':
-        devices = f"cuda:{devicesid}" if torch.cuda.is_available() else "cpu"
-    else :
-        devices ='cpu'
-    print(devices)
-    print(f"{'*' * 20} Current Algorithm usage: GAN {'*' * 20}")
 
-    
-    datasetid = config["train_param"]['datasets']
-    ratio=config['train_param']['ratio']
-    Ns = config[f"data_param{datasetid}"]['Ns']
-    Fs = config[f"data_param{datasetid}"]['Fs']
-    Nc = config[f"data_param{datasetid}"]['Nc']
-    Nm = config["model_param"]['Nm']
-    ws = config['train_param']['ws']
-    Nt = int(ws*Fs)
-    
-    pretrain=config['train_param']['pre_train']
-    testmethod = config['train_param']['testmethod']
-    
-    noisetype=config['train_param']['noisetype']
-    noise_ratio=config['train_param']['noise_ratio']
-    snr_db=config['train_param']['snr_db']
-    
-    lambda_G = config['gan_model_param']['lambda_G']
-    lambda_vae = config['gan_model_param']['lambda_vae']
-    lambda_kl = config['gan_model_param']['lambda_kl']
+import numpy as np
+import torch
+import yaml
+
+from Models.DenoFlow import FlowDenoiser
+from Utils import decode, trainer
+from Utils.dataset import META, build_views, fold_indices, load_subject, make_loaders
+from Utils.inject import set_random_seed
+from Utils.metrics import compute_metrics
 
 
-    start_time = time.time()
-    
-    if datasetid == 2 :
-        Kf = 6
-    elif datasetid == 1:
-        Kf = 5
-    else:
-        Kf = 4
-    for i in range (1,Kf):
-        fix_random_seed(i)
-        for Subject in range(1, Ns + 1):
-            ACC_F,ACC_R=0,0
-            print(f'Kf:{i}')
-            print(f'subject:{Subject}')
-            Data_Train, Data_Test,masks= EEGDataset.getSSVEPIntra(subject=Subject, train_ratio=ratio,kfold=i)[:]
-            eeg_train_dataloader, eeg_test_dataloader, EEGData_Train, NOISYData_Train,EEGLabel_Train,EEGData_Test,NOISYData_Test, EEGLabel_Test= data_preprocess(Data_Train,Data_Test) 
-            if pretrain:
-                generator = Generator.EEGDenoiseGeneratorv2(Nc*Nm,Nt).to(devices)
-                generator.load_state_dict(torch.load(f"/data2/hzt/ssvep/denonetv2/kf{i}set{datasetid}sub{Subject}-{noisetype}-{noise_ratio}-{snr_db}-generator-{lambda_G}-{lambda_vae}-{lambda_kl}.pth"))
-            else:
-                if basegenerator == 'CNN': #CNN,CNN_Trans,CNN_LSTM
-                    ACC_F,ACC_R,generator,discriminator= Trainer.train_gan(eeg_train_dataloader, eeg_test_dataloader, devices,basegenerator=EEGDenoiseGenerator_NoSeq(Nc*Nm))
-                elif basegenerator == 'CNN_Trans': 
-                    ACC_F,ACC_R,generator,discriminator= Trainer.train_gan(eeg_train_dataloader, eeg_test_dataloader, devices,basegenerator=EEGDenoiseGeneratorv2(Nc*Nm,Nt))
-                elif basegenerator == 'CNN_LSTM': 
-                    ACC_F,ACC_R,generator,discriminator= Trainer.train_gan(eeg_train_dataloader, eeg_test_dataloader, devices,basegenerator=EEGDenoiseGenerator(Nc*Nm,Nt))
-                else:
-                    ACC_F,ACC_R,generator,discriminator= Trainer.train_gan(eeg_train_dataloader, eeg_test_dataloader, devices)
-                    
-            
-            _,_,_,_,x_train_g = generator(NOISYData_Train.to(devices))
-            x_train_g=x_train_g.cpu().detach().numpy()
-            _,_,_,_,x_test_g = generator(NOISYData_Test.to(devices))
-            x_test_g=x_test_g.cpu().detach().numpy()
-              
-            ACC = test(testmethod,config,devices, EEGData_Train, NOISYData_Train,x_train_g,EEGLabel_Train , EEGData_Test, NOISYData_Test,x_test_g,EEGLabel_Test)
-            filename=f"results/set{datasetid}-{noisetype}-{config['train_param']['savefilename']}"
-            sheetname=f"Sheet-{noise_ratio}-{snr_db}-{testmethod}-{lambda_G}-{lambda_vae}-{lambda_kl}"
-            write_to_excel(i, Subject, ACC, (ACC_F,ACC_R),filename=filename, sheetname=sheetname)
-                
+def parse_args():
+    p = argparse.ArgumentParser(description=__doc__,
+                                formatter_class=argparse.RawDescriptionHelpFormatter)
+    p.add_argument('--config', default='etc/config.yaml')
+    p.add_argument('--dataset', choices=sorted(META), default=None)
+    p.add_argument('--subject', type=int, default=None)
+    p.add_argument('--fold', type=int, default=None)
+    p.add_argument('--artifact', choices=['emg', 'eog', 'both'], default=None)
+    p.add_argument('--ratio', type=float, default=None, help='mask fraction')
+    p.add_argument('--snr', type=float, default=None, help='target ratio gamma, in dB')
+    p.add_argument('--epochs', type=int, default=None)
+    p.add_argument('--decode', action='store_true',
+                   help='also train downstream decoders on the denoised trials')
+    p.add_argument('--device', default=None)
+    return p.parse_args()
 
-    end_time = time.time()
 
-    print("cost_time:", end_time - start_time)
+def main():
+    args = parse_args()
+    with open(args.config, encoding='utf-8') as handle:
+        cfg = yaml.safe_load(handle)
+
+    for key in ('dataset', 'subject', 'fold', 'artifact', 'ratio', 'snr', 'epochs'):
+        value = getattr(args, key)
+        if value is not None:
+            cfg[key] = value
+
+    device = torch.device(args.device or cfg.get('device')
+                          or ('cuda' if torch.cuda.is_available() else 'cpu'))
+    set_random_seed(int(cfg.get('seed', 42)))
+
+    meta = META[cfg['dataset']]
+    meta.num_banks = int(cfg.get('num_banks', meta.num_banks))
+    root = cfg['dataset_root'][cfg['dataset']]
+
+    eeg, labels = load_subject(meta.name, root, int(cfg['subject']))
+    clean, noisy, _ = build_views(eeg, meta, cfg['artifact'], cfg.get('mode', 'time'),
+                                  float(cfg['ratio']), float(cfg['snr']))
+    train_idx, test_idx = fold_indices(meta, int(cfg['fold']),
+                                       float(cfg.get('train_ratio', 0.8)))
+    train_loader, test_loader = make_loaders(clean, noisy, labels, train_idx, test_idx,
+                                             int(cfg.get('batch_size', 36)))
+
+    print(f"{meta.name} S{cfg['subject']} fold {cfg['fold']} | artifact {cfg['artifact']} "
+          f"| mask {cfg['ratio']} | gamma {cfg['snr']} dB | Nc {meta.flat_channels} "
+          f"| T {meta.num_timesteps} | device {device}", flush=True)
+
+    model = FlowDenoiser(meta.flat_channels, meta.num_timesteps,
+                         dropout=float(cfg.get('dropout', 0.5)), num_classes=0,
+                         steps=int(cfg.get('flow_steps', 4)),
+                         arch={'conv_order': 'alt', 'bands': max(meta.num_banks, 1),
+                               **cfg.get('arch', {})})
+    model = trainer.train(model, train_loader, test_loader, device, meta.flat_channels,
+                          meta.num_timesteps, meta.num_classes, cfg)
+
+    denoised = trainer.denoise(model, noisy[test_idx], device,
+                               steps=int(cfg.get('flow_steps', 4)))
+    scores = compute_metrics(clean[test_idx], denoised, noisy[test_idx])
+    print(f"  fidelity  CC {scores['cc']:.4f}  RRMSE {scores['rrmse']:.4f}  "
+          f"SNRI {scores['snri']:.2f} dB", flush=True)
+
+    if args.decode:
+        train_denoised = trainer.denoise(model, noisy[train_idx], device,
+                                         steps=int(cfg.get('flow_steps', 4)))
+        for name in cfg.get('decoders', ['EEGNet', 'SSVEPNet']):
+            acc = decode.run(name, train_denoised, labels[train_idx], denoised,
+                             labels[test_idx], meta.num_classes, device,
+                             epochs=int(cfg.get('decoder_epochs', 100)))
+            print(f"  {name:<10} accuracy {100 * acc:.2f}%", flush=True)
+
+    out_dir = cfg.get('output_dir', 'result')
+    os.makedirs(out_dir, exist_ok=True)
+    tag = f"{meta.name}_S{cfg['subject']}_fold{cfg['fold']}_{cfg['artifact']}"
+    np.save(os.path.join(out_dir, f'{tag}_denoised.npy'), denoised)
+    torch.save(model.state_dict(), os.path.join(out_dir, f'{tag}_field.pt'))
+    print(f'  saved to {out_dir}/{tag}_*', flush=True)
 
 
 if __name__ == '__main__':
-    os.chdir('/denonet')
-    baseline= False
-    basegenerator = None # CNN,CNN_Trans,CNN_LSTM,GCTNet ,CT_DCENet,EEGDNet
-    if not baseline :   
-        run()
-    else:
-        if basegenerator in ['CNN', 'CNN_Trans', 'CNN_LSTM']:
-            run(basegenerator)
-        else:
-            runbaseline(basegenerator)
-            
+    main()

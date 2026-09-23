@@ -5,7 +5,6 @@ import numpy as np
 import math
 from scipy import signal
 from sklearn.cross_decomposition import CCA
-from etc.global_config import config
 class FBCCA():
     def __init__(self, opt):
         super(FBCCA, self).__init__()
@@ -40,25 +39,22 @@ class FBCCA():
         reference_signals = np.asarray(reference_signals)
         return reference_signals
 
-    def get_template_signal_with_labels(self,X, labels, targets):
+    def get_template_signal_with_labels(self, X, labels, targets):
         """
-        X: [segments, Nc, T] 或 [segments, C, T]
-        labels: [segments] 对应每个样本的类别标签
-        targets: 类别列表
-        返回: [Nf, Nc, T] 每个类别的平均模板
+        X: [segments, Nc, T] or [segments, C, T]
+        labels: [segments] numeric class ids aligned with target order
+        targets: class-frequency list
+        return: [Nf, Nc, T] class-mean templates
         """
-        datasetid = config["train_param"]['datasets']
-        initfreq = config[f"data_param{datasetid}"]['initfreq']
-        deltafreq = config[f"data_param{datasetid}"]['deltafreq']
         X = np.array(X)
         labels = np.array(labels)
-        Nf = len(targets)
-        Nc = X.shape[1]
-        T = X.shape[2]
-        templates = np.zeros((Nf, Nc, T))
-        for i, target in enumerate(targets):
-            idx = np.where(labels == round((target-initfreq)/deltafreq))[0]
-            templates[i] = np.mean(X[idx], axis=0)
+        num_classes = len(targets)
+        num_channels = X.shape[1]
+        num_timesteps = X.shape[2]
+        templates = np.zeros((num_classes, num_channels, num_timesteps))
+        for class_index in range(num_classes):
+            class_indices = np.where(labels == class_index)[0]
+            templates[class_index] = np.mean(X[class_indices], axis=0)
         return templates
 
     def find_correlation(self, n_components, X, Y):
@@ -114,7 +110,7 @@ class FBCCA():
                 reference_signals[:, fb_i] = self.get_template_signal_with_labels(
                     train_data[:, fb_i], train_labels, targets)
                 if np.isnan(reference_signals).any():
-                    print("警告: 输入yyyyy包含NaN值")
+                    print('Warning: NaN detected in FBCCA reference templates.')
         else:
             reference_signals = self.get_Reference_Signal(num_harmonics, targets)
 
@@ -126,7 +122,7 @@ class FBCCA():
         fb_coefs = [math.pow(i, -1.25) + 0.25 for i in range(1, self.Nm + 1)]  # w(n) = n^(-0.5) + 1.25
         for segment in range(0, num_segments):
             result = np.zeros(self.Nf)
-            # result = ¦² w(n) * (¦Ñ(k))^2
+            # result = 娄虏 w(n) * (娄脩(k))^2
             for fb_i in range(0, self.Nm):
                 x = test_data[segment, fb_i]
                 y = reference_signals[:, fb_i] if template else reference_signals
@@ -137,3 +133,5 @@ class FBCCA():
             predicted_class.append(np.argmax(result))
         predicted_class = np.array(predicted_class)
         return predicted_class
+
+

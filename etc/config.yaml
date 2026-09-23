@@ -1,177 +1,53 @@
+# DenoFlow: default experiment settings.
+# Everything here can be overridden on the command line; see `python main.py --help`.
 
-# Parameters for training procedure
-train_param:
-  datasets: 2        #数据集选择
-  pre_train: False
-  ratio: 0.85          #训练集占比
-  ws: 1.0                 #窗口长度F
-  Kf: 5
-  bz: 36
-  epochs: 300
-  testmethod: FBCCA
-  noisetype: all #time,space,freq,random，all
-  noise_ratio: 0.25 #0,0.25,0.5,0.75,1
-  snr_db: 5  #10,5,0
-  smooth: True
-  cuda : 0
-  savefilename: resultsBASLINEcnn.xlsx #resultssen.xlsx 
+seed: 42
+device: null                    # null -> cuda when available
 
-model_param:
-    Nm: 3
-    Bandpass: False
-    KLG: True         #知识层
-    MIX: false
-    DL: True                #深度学习层
-    FB: True
-    Es: 1
+# ---------------------------------------------------------------- data
+dataset: benchmark              # nakanishi2015 | benchmark
+dataset_root:
+  nakanishi2015: Data/Nakanishi2015
+  benchmark: Data/Benchmark
+subject: 1
+fold: 0
+train_ratio: 0.8                # chronological within-subject split
+num_banks: 3                    # filter-bank sub-bands
 
-gan_model_param:
-  lambda_G: 1   # 控制G分类损失
-  lambda_D: 1    # 控制D分类损失
-  lambda_vae: 1    #重建回归损失
-  lambda_kl: 0.1   #重建KL散度损失
-  lr_G: 0.001
-  lr_D: 0.001
-  wd_D: 0.0001
-  wd_G: 0.0001
-  lr_jitter: true
+# ---------------------------------------------------------- contamination
+artifact: both                  # emg | eog | both
+mode: time                      # time -> contiguous span; space -> subset of electrodes
+ratio: 0.5                      # mask fraction
+snr: 0.0                        # target ratio gamma, in dB, per segment inside the mask
 
+# ------------------------------------------------------------ field network
+arch:
+  width: 4
+  temporal_kernel: 16
+  num_layers: 4                 # Transformer encoder layers at the bottleneck
+  nhead: 12
+  dim_feedforward: 2048
+dropout: 0.5
 
-vae_model_param:
-  lr: 0.001
-  wd: 0.0001
-  lambda_vae: 1
-  lr_jitter: true
-  Nm: 3
+# --------------------------------------------------------------- objective
+flow_weight: 1.0                # velocity regression
+sample_weight: 1.0              # reconstruction on the integrated output
+classification_weight: 1.0      # class term; set to 0 to drop the classifier
+train_sample_steps: 4           # S_tr, Euler steps used to form X^ during training
+flow_steps: 4                   # S, Euler steps used at inference
 
-# Parameters for ssvep data
-data_param1:
-  Nh: 180                      # number of trial
-  Nc: 8                        # number of channel
-  Fs: 256                      # frequency of sample
-  Nf: 12                       # number of stimulus
-  Ns: 10                       # number of subjects
-  initfreq: 9.25
-  deltafreq: 0.5
-  Nt: 1024
+# ---------------------------------------------------------------- training
+epochs: 300
+batch_size: 36
+generator_lr: 1.0e-3
+generator_weight_decay: 1.0e-4
+discriminator_lr: 1.0e-3
+discriminator_weight_decay: 1.0e-4
+grad_clip: 1.0
+eval_interval: 10
 
-data_param2:
-  Nh: 240                      # number of trial
-  Nc: 9                      # number of channel
-  Fs: 250                      # frequency of sample
-  Nf: 40                       # number of stimulus
-  Ns: 35
-  initfreq: 8
-  deltafreq: 0.2
-  Nt: 1500
+# ------------------------------------------------------------- downstream
+decoders: [EEGNet, SSVEPNet]
+decoder_epochs: 100
 
-data_param3:
-  Nh: 160                      # number of trial
-  Nc: 64                      # number of channel
-  Fs: 250                      # frequency of sample
-  Nf: 40                       # number of stimulus
-  Ns: 70
-  initfreq: 8
-  deltafreq: 0.2
-  Nt: 750
-
-
-slclayer_param:
-  initweight: 1           #其他通道初始权重
-  SLC_FIX: True        #通道选择层参数固定
-
-TRCA:
-  slc_all: False
-  is_ensemble: False
-  n_components: 1
-  Bandpass_FIX: False
-  KLG_FIX: False
-  FB_FIX: False
-
-TDCA:
-  slc_all: True
-  lagging_len: 5
-  n_components: 3
-  Bandpass_FIX: False
-  KLG_FIX: False
-  FB_FIX: False
-
-TD-RCA:
-  slc_all: True
-  lagging_len: 5
-  n_components: 3
-  is_ensemble: False
-  Bandpass_FIX: False
-  KLG_FIX: False
-  FB_FIX: False
-
-
-MIXlayer:
-  mix_FIX: False
-
-# Parameters for DL-based methods
-EEGNet:
-  epochs: 300                  # number of epochs
-  bz: 30                     # batch size
-  lr: 0.005                       # learning rate
-  wd: 0.0001                   # weight decay
-  lr_jitter: false             # learning rate scheduler
-
-CCNN:
-  epochs: 300                  # number of epochs
-  bz: 30                     # batch size
-  lr: 0.001                       # learning rate
-  wd: 0.0001                   # weight decay
-  lr_jitter: false             # learning rate scheduler
-
-FBtCNN:
-  epochs: 500                  # number of epochs
-  bz: 30                     # batch size
-  lr: 0.001                       # learning rate
-  wd: 0.01                   # weight decay
-  lr_jitter: false             # learning rate scheduler
-
-
-ConvCA:
-  epochs: 1000                  # number of epochs
-  bz: 30                     # batch size
-  lr: 0.001                       # learning rate
-  wd: 0.0000                  # weight decay
-  lr_jitter: false             # learning rate scheduler
-
-SSVEPNet:
-  epochs: 400                  # number of epochs
-  bz: 30                    # batch size
-  lr: 0.01                       # learning rate
-  wd: 0.0003                   # weight decay
-  lr_jitter: true             # learning rate scheduler
-  stimulus_type: 12           # 4-class or 12-class
-
-SSVEPformer:
-  epochs: 100                # number of epochs
-  bz: 30                     # batch size
-  lr: 0.001                       # learning rate
-  wd: 0.0001                   # weight decay
-  lr_jitter: True             # learning rate scheduler
-
-DDGCNN:
-  epochs: 400                  # number of epochs
-  bz: 30                     # batch size
-  lr: 0.001                   # learning rate
-  wd: 0.0001                   # weight decay
-  lr_jitter: true             # learning rate scheduler
-  lr_decay_rate: 0.75         # learning rate decay rate
-  optim_patience: 300        # optimizer patience
-  trans_class: DCD           # {DCD, linear, normal_conv}
-  act: leakyrelu             # activation layer {relu, prelu, leakyrelu}
-  norm: layer                # {batch, layer, instance} normalization
-  n_filters: 128            # 64 or 128
-
-
-
-
-
-
-
-
-
+output_dir: result

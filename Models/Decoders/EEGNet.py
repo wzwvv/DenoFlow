@@ -3,7 +3,7 @@ import torch
 from torch import nn
 import sys
 sys.path.append('../')
-from Utils.Constraint import Conv2dWithConstraint
+from Models.Classifier import Conv2dWithConstraint
 
 class EEGNet(nn.Module):
     def Depthwise_Separable_Conv(self, X, depthwiseConv, pointwiseConv):
