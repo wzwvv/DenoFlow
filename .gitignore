@@ -1,7 +1,7 @@
 __pycache__/
 *.py[cod]
 # datasets and artifact libraries (see README)
-data/
+/datasets/
 Data/*.npy
 # outputs of the runs
 results/

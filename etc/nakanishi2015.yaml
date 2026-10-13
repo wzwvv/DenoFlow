@@ -5,9 +5,9 @@
 # deep decoders report the accuracy after the final epoch (decoder_report: final).
 paths:
   datasets:
-    benchmark12: data/Nakanishi2015
-    benchmark40: data/Benchmark
-    beta: data/BETA
+    benchmark12: datasets/Nakanishi2015
+    benchmark40: datasets/Benchmark
+    beta: datasets/BETA
   outputs:
     root: results
 experiment:

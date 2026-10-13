@@ -53,10 +53,10 @@ The datasets and the artifact libraries are not included. Download them and arra
 
 ```
 DenoFlow/
-├── data/
+├── datasets/
 │   ├── Nakanishi2015/S1.mat ... S10.mat
 │   └── Benchmark/S1.mat ... S35.mat
-└── Data/
+└── Data/                      # code folder of the repository
     ├── EMG_all_epochs.npy
     └── EOG_all_epochs.npy
 ```
