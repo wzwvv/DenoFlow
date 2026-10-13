@@ -1,0 +1,14 @@
+__pycache__/
+*.py[cod]
+# datasets and artifact libraries (see README)
+data/
+Data/*.npy
+# outputs of the runs
+results/
+logs/
+etc/generated/
+*.pt
+*.pth
+.DS_Store
+.idea/
+.vscode/

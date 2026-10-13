@@ -1,0 +1,390 @@
+# Benchmark (40 classes, 9 posterior channels, 250 Hz, 35 subjects, 6 blocks); called benchmark40 in the code.
+# Base configuration of every run on this dataset. run.py copies it, applies the command-line
+# overrides of a run, and writes the result to etc/generated/<run name>.yaml.
+# Evaluation protocol (Section 4.3.1): block-wise cross-validation (fold_ids: [] runs every fold),
+# deep decoders report the accuracy after the final epoch (decoder_report: final).
+paths:
+  datasets:
+    benchmark12: data/Nakanishi2015
+    benchmark40: data/Benchmark
+    beta: data/BETA
+  outputs:
+    root: results
+experiment:
+  split_mode: intra
+  task_mode: augmentation
+  augmentation_task: denoise
+  device: 0
+  num_threads: 5
+  random_seed: 42
+  decision_overhead_sec: 0
+  subject_ids: []
+  target_subject_ids: []
+  fold_ids: []
+  results_filename: experiment_results.csv
+  save_generated_signals: false
+  save_checkpoints: false
+  evaluation_pairs:
+  - train_view: generated
+    test_view: generated
+  - train_view: noisy
+    test_view: noisy
+  - train_view: clean
+    test_view: clean
+  method_view_overrides:
+    traditional:
+      train_view: inherit
+      test_view: inherit
+    deep:
+      train_view: inherit
+      test_view: inherit
+    hybrid:
+      train_view: inherit
+      test_view: inherit
+    hybrid_knowledge:
+      train_view: inherit
+      test_view: inherit
+    diffusion:
+      train_view: inherit
+      test_view: inherit
+    extra:
+      train_view: inherit
+      test_view: inherit
+  methods:
+    traditional:
+    - FBCCA
+    - TRCA
+    deep:
+    - EEGNet
+    - CCNN
+    - SSVEPNet
+    hybrid:
+      knowledge: null
+      deep: null
+    diffusion: null
+    extra: []
+    augmentation:
+    - FLOW_CLS
+  run_name: example
+  decoder_report: final
+dataset:
+  active: 2
+  train_ratio: 0.85
+  window_sec: 1
+  fallback_num_folds: null
+  loso_calibration:
+    enabled: false
+    transform: lst
+    ncali: 1
+    nall: auto
+    k_frequencies: auto
+    frequency_selection: all
+    selected_frequencies: []
+    holdout_all_classes: true
+    trial_selection: first
+    trial_offset: 0
+    trial_indices: []
+    use_second_stage: true
+datasets:
+  benchmark12:
+    num_trials: 180
+    num_channels: 8
+    sample_rate: 256
+    num_classes: 12
+    num_subjects: 10
+    start_frequency: 9.25
+    frequency_step: 0.5
+    max_timesteps: 1024
+  benchmark40:
+    num_trials: 240
+    num_channels: 9
+    sample_rate: 250
+    num_classes: 40
+    num_subjects: 35
+    start_frequency: 8.0
+    frequency_step: 0.2
+    max_timesteps: 1500
+    selected_channels:
+    - 47
+    - 53
+    - 54
+    - 55
+    - 56
+    - 57
+    - 60
+    - 61
+    - 62
+  beta:
+    num_trials: 160
+    num_channels: 9
+    sample_rate: 250
+    num_classes: 40
+    num_subjects: 70
+    start_frequency: 8.0
+    frequency_step: 0.2
+    max_timesteps: 750
+    selected_channels:
+    - 47
+    - 53
+    - 54
+    - 55
+    - 56
+    - 57
+    - 60
+    - 61
+    - 62
+training:
+  batch_size: 36
+  epochs: 300
+signal:
+  num_filter_banks: 3
+  ensemble_size: 1
+  use_marginal_smoothing: true
+  knowledge_pipeline:
+    use_bandpass: false
+    use_mix_layer: false
+    use_filter_bank_output: true
+    mix_layer_fixed: false
+knowledge_methods:
+  trca:
+    use_all_channels: true
+    use_ensemble: true
+    num_components: 1
+    freeze_bandpass: false
+    freeze_knowledge_layer: false
+    freeze_filter_bank: false
+  tdca:
+    use_all_channels: true
+    lagging_length: 5
+    num_components: 1
+    freeze_bandpass: false
+    freeze_knowledge_layer: false
+    freeze_filter_bank: false
+  td_rca:
+    use_all_channels: true
+    lagging_length: 5
+    tdca_n_components: 3
+    trca_n_components: 1
+    use_ensemble: false
+    freeze_bandpass: false
+    freeze_knowledge_layer: false
+    freeze_filter_bank: false
+    use_temporal_filter_bank: false
+    tdca_init_mode: analytical_trainable
+    trca_init_mode: analytical_trainable
+    fb_init_mode: analytical_trainable
+classification_models:
+  eegnet:
+    epochs: 300
+    lr: 0.005
+    weight_decay: 0.0001
+    use_scheduler: false
+  ccnn:
+    epochs: 300
+    lr: 0.001
+    weight_decay: 0.0001
+    use_scheduler: false
+  fbtcnn:
+    epochs: 500
+    lr: 0.001
+    weight_decay: 0.01
+    use_scheduler: false
+  convca:
+    epochs: 1000
+    lr: 0.001
+    weight_decay: 0.0
+    use_scheduler: false
+  ssvepnet:
+    epochs: 400
+    lr: 0.001
+    weight_decay: 0.0003
+    use_scheduler: true
+  ssvepformer:
+    epochs: 100
+    lr: 0.001
+    weight_decay: 0.0001
+    use_scheduler: true
+  ddgcnn:
+    epochs: 400
+    lr: 0.001
+    weight_decay: 0.0001
+    use_scheduler: true
+    lr_decay_factor: 0.75
+    scheduler_patience: 300
+    transform_class: DCD
+    activation: leakyrelu
+    normalization: layer
+    num_filters: 128
+  enh_ssvepformer:
+    epochs: 300
+    lr: 0.001
+    weight_decay: 0.0001
+    use_scheduler: true
+    d_model: 128
+    depth: 2
+    num_heads: 4
+    dropout: 0.5
+    num_harmonics: 5
+    ref_sources: []
+diffusion_classifier:
+  schedule:
+    num_steps: 200
+    beta_start: 0.0001
+    beta_end: 0.02
+  training:
+    num_harmonics: 5
+    noise_loss_weight: 1.0
+    prototype_loss_weight: 0.0
+    spectral_loss_weight: 0.0
+    epochs: 300
+    lr: 0.001
+    weight_decay: 0.0001
+    batch_size: 36
+    eval_interval: 10
+  model:
+    dropout: 0.2
+    classifier_mode: raw
+    use_input_norm: true
+    use_proto_fusion: false
+    logit_mix: 0.5
+    score_temperature: 8.0
+    timestep_sampling: uniform
+    timestep_power: 2.0
+    spectral_bandwidth_hz: 0.4
+    spectral_harmonic_boost: 4.0
+augmentation:
+  noise:
+    family: real
+    type: time
+    mode: time
+    ratio: 0.5
+    snr_db: 0
+    src_num: 1
+    artifact_type: both
+    channel_gain_sigma: 0.3
+    fs_noise_emg: 256
+    fs_noise_eog: 256
+  stateful:
+    defaults:
+      batch_size: 36
+      epochs: 300
+      dropout: 0.5
+      generator_lr: 0.001
+      discriminator_lr: 0.001
+      generator_weight_decay: 0.0001
+      discriminator_weight_decay: 0.0001
+      use_scheduler: true
+      eval_interval: 10
+      reconstruction_loss: l2
+      reconstruction_weight: 1.0
+      classification_weight: 1.0
+      adversarial_weight: 0.3
+      kl_weight: 10
+      latent_dim: 128
+      grad_clip: 1.0
+    backbones:
+      cnn: {}
+      cnn-lstm: {}
+      cnn-trans: {}
+    modes:
+      base: {}
+      gan: {}
+      vae: {}
+      gan-vae: {}
+    overrides: {}
+  methods:
+    scale:
+      apply_to_test: false
+      scale_factor: 1.05
+    noise_aug:
+      apply_to_test: false
+      noise_std_divisor: 5.0
+    flip:
+      apply_to_test: false
+    fshift:
+      apply_to_test: false
+      freq_shift_hz: -0.2
+    dwtaug:
+      apply_to_test: false
+      wavelet: db4
+    hhtaug:
+      apply_to_test: false
+    diffusion:
+      batch_size: 36
+      epochs: 300
+      num_diffusion_steps: 200
+      beta_start: 0.0001
+      beta_end: 0.02
+      inference_steps: 50
+      lr: 0.001
+      weight_decay: 0.0001
+    diffusion_gan:
+      batch_size: 36
+      epochs: 300
+      num_diffusion_steps: 200
+      beta_start: 0.0001
+      beta_end: 0.02
+      inference_steps: 50
+      lr: 0.001
+      weight_decay: 0.0001
+      discriminator_lr: 0.001
+      discriminator_weight_decay: 0.0001
+      classification_weight: 1.0
+      discriminator_weight: 1.0
+      gan_interval: 5
+    ct_dcenet:
+      batch_size: 36
+      stage1_epochs: 100
+      stage2_epochs: 100
+      classification_weight: 1.0
+      num_blocks: 5
+      head_types:
+      - 0
+      - 0
+      - 1
+      - 1
+    eegdnet:
+      batch_size: 36
+      epochs: 500
+      patch_length: 50
+      depth: 6
+      num_heads: 1
+      lr: 0.001
+      discriminator_lr: 0.0001
+      discriminator_weight_decay: 0.0
+      betas:
+      - 0.5
+      - 0.9
+      eps: 1.0e-08
+      classification_weight: 1.0
+    gctnet:
+      batch_size: 36
+      epochs: 400
+    simple_cnn:
+      batch_size: 36
+      epochs: 200
+    fcnn:
+      batch_size: 36
+      epochs: 200
+    res_cnn:
+      batch_size: 36
+      epochs: 200
+    generator_cnn:
+      batch_size: 36
+      epochs: 200
+    generator_transformer:
+      batch_size: 36
+      epochs: 200
+    novel_cnn:
+      batch_size: 36
+      epochs: 200
+    duocl:
+      batch_size: 36
+      epochs: 200
+    flow_cls:
+      conv_order: alt
+      cls_loss_form: nll
+      train_sample_steps: 4
+      flow_steps: 4
+    eegdfus:
+      epochs: 2000

@@ -1,0 +1,1 @@
+from Trainers.Augmentation.core import train_augmentation_method
