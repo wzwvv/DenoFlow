@@ -1,4 +1,3 @@
-<img width="2917" height="2124" alt="image" src="https://github.com/user-attachments/assets/cef10054-a6a7-409d-a02b-faca95f1897e" /><div align="center">
 <h1>DenoFlow</h1>
 <h3>Flow Matching for SSVEP Denoising under Recorded Physiological Artifacts</h3>
 
