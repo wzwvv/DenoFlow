@@ -2,7 +2,7 @@
 <h1>DenoFlow</h1>
 <h3>Flow Matching for SSVEP Denoising under Recorded Physiological Artifacts</h3>
 
-Zhentao He<sup>1,†</sup>, [Ziwei Wang](https://scholar.google.com/citations?user=fjlXqvQAAAAJ&hl=en)<sup>1,†</sup>, and [Dongrui Wu](https://scholar.google.com/citations?user=UYGzCPEAAAAJ&hl=en)<sup>1 :email:</sup>
+[Zhentao He](https://scholar.google.com/citations?user=TPmS8_wAAAAJ&hl=en)<sup>1,†</sup>, [Ziwei Wang](https://scholar.google.com/citations?user=fjlXqvQAAAAJ&hl=en)<sup>1,†</sup>, and [Dongrui Wu](https://scholar.google.com/citations?user=UYGzCPEAAAAJ&hl=en)<sup>1 :email:</sup>
 
 <sup>†</sup> Z. He and Z. Wang contributed equally to this work.
 
