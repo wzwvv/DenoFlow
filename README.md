@@ -1,3 +1,4 @@
+<div align="center">
 <h1>DenoFlow</h1>
 <h3>Flow Matching for SSVEP Denoising under Recorded Physiological Artifacts</h3>
 
