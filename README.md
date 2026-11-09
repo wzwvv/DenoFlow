@@ -12,6 +12,12 @@ Zhentao He<sup>1,†</sup>, [Ziwei Wang](https://scholar.google.com/citations?us
 
 </div>
 
+## News
+
+- **November 2026** — 🎉 **Congratulations!** Our paper has been accepted by
+  *Knowledge-Based Systems* and is now available in
+  [Early Access](https://doi.org/10.1016/j.knosys.2026.117288).
+
 This repository contains the code of DenoFlow and the scripts that reproduce the main comparison of the
 paper (Tables 4 to 7): DenoFlow and nine baseline denoisers on two public SSVEP datasets under three
 artifact types, evaluated by signal fidelity and by the accuracy of five downstream decoders, together
@@ -180,4 +186,20 @@ Small numerical differences from the paper can occur with other GPUs or library 
 
 ## Citation
 
-The paper is under review. The citation will be added when it is published.
+**Status:** Early Access in *Knowledge-Based Systems*.
+
+If you find this work useful, please cite:
+
+```bibtex
+@article{he2027denoflow,
+  title   = {{DenoFlow}: Flow Matching for {SSVEP} Denoising under Recorded Physiological Artifacts},
+  author  = {He, Zhentao and Wang, Ziwei and Wu, Dongrui},
+  journal = {Knowledge-Based Systems},
+  volume  = {355},
+  pages   = {117288},
+  year    = {2027},
+  note    = {Early Access},
+  doi     = {10.1016/j.knosys.2026.117288},
+  url     = {https://doi.org/10.1016/j.knosys.2026.117288}
+}
+```
